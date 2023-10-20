@@ -32,7 +32,7 @@ const getUserWithEmail = (email) => {
       if (users.length === 0) {
         return null;
       }
-      return result.rows[0];
+      return users.rows[0];
     })
     .catch((err) => {
       console.log(err.message);
@@ -58,7 +58,7 @@ const getUserWithId = (id) => {
       if (users.length === 0) {
         return null;
       }
-      return result.rows[0];
+      return users[0];
     })
     .catch((err) => {
       console.log(err.message);
@@ -70,12 +70,6 @@ const getUserWithId = (id) => {
  * @param {{name: string, password: string, email: string}} user
  * @return {Promise<{}>} A promise to the user.
  */
-const addUer = function (user) {
-  const userId = Object.keys(users).length + 1;
-  user.id = userId;
-  users[userId] = user;
-  return Promise.resolve(user);
-};
 
 const addUser = (user) => {
   return pool
@@ -89,7 +83,7 @@ const addUser = (user) => {
       if (users.length === 0) {
         return null;
       }
-      return result.rows[0];
+      return users[0];
     })
     .catch((err) => {
       console.log(err.message);
@@ -103,10 +97,30 @@ const addUser = (user) => {
  * @param {string} guest_id The id of the user.
  * @return {Promise<[{}]>} A promise to the reservations.
  */
-const getAllReservations = function (guest_id, limit = 10) {
-  return getAllProperties(null, 2);
-};
 
+const getAllReservations = (guest_id) => {
+  return pool
+    .query(`
+    SELECT reservations.*, properties.*, avg(property_reviews.rating) as average_rating
+    FROM reservations
+    JOIN properties ON reservations.property_id = properties.id
+    JOIN property_reviews ON properties.id = property_reviews.property_id
+    WHERE reservations.guest_id = $1
+    GROUP BY properties.id, reservations.id
+    ORDER BY reservations.start_date
+    `,
+      [guest_id])
+    .then((result) => {
+      const reservations = result.rows;
+      if (reservations.length === 0) {
+        return null;
+      }
+      return reservations
+    })
+    .catch((err) => {
+      console.log(err.message);
+    });
+};
 /// Properties
 
 /**
@@ -125,6 +139,10 @@ const getAllProperties = (options, limit = 10) => {
     `,
       [limit])
     .then((result) => {
+      const properties = result.rows;
+      if (properties.length === 0) {
+        return null
+      }
       return result.rows;
     })
     .catch((err) => {
